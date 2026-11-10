@@ -8,7 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
-import * as defaults from "./data.js";
+import { content, localize } from "./data.js";
 import {
   Arrow,
   PalmFronds,
@@ -33,43 +33,58 @@ const DEFAULT_COLORS = {
   yellow: "#f3e7a6",
 };
 
-// Every sheet in page order: section id, nav label and meta-bar page name.
-const SHEETS = [
-  { id: "cover", label: "Cover", page: "Cover page" },
-  { id: "contents", label: "Contents", page: "Contents" },
-  { id: "about", label: "About", page: "About me" },
-  { id: "work", label: "Work", page: "Projects" },
-  { id: "process", label: "Process", page: "Process" },
-  { id: "words", label: "Words", page: "Evaluation" },
-  { id: "contact", label: "Contact", page: "Contact" },
-];
+// Every sheet in page order, by section id; nav labels and page names come from the `ui` text.
+const SHEETS = ["cover", "contents", "about", "work", "process", "words", "contact"];
 
 // Cover-deck folder slots (left/width in %, top in px, tab position) for the first six categories.
+// Folders in a row overlap by less than their side padding and the second row starts below the
+// first row's captions, so no title is covered.
 const DECK_SLOTS = [
-  { left: 0, width: 38, top: 8, tab: 0.16 },
+  { left: 0, width: 29.5, top: 8, tab: 0.16 },
   { left: 28, width: 34, top: 0, tab: 0.7 },
-  { left: 57, width: 43, top: 14, tab: 0.12 },
-  { left: 2, width: 41, top: 70, tab: 0.06 },
-  { left: 24, width: 39, top: 92, tab: 0.5 },
-  { left: 60, width: 40, top: 100, tab: 0.3 },
+  { left: 60.5, width: 39.5, top: 14, tab: 0.12 },
+  { left: 3, width: 31, top: 140, tab: 0.06 },
+  { left: 32.5, width: 33, top: 132, tab: 0.5 },
+  { left: 64, width: 36, top: 146, tab: 0.3 },
 ];
+
+// localStorage key for the visitor's language choice.
+const LANG_KEY = "ftp-lang";
+
+// Combining marks drawn above a letter or beside its top (tone marks, circumflex, breve, horn), not the dot below.
+const MARKS_ABOVE = /[\u0300-\u0309\u031B]/;
+
+// The saved language choice, else Vietnamese for Vietnamese browsers and English for everyone else.
+function initialLang() {
+  try {
+    const saved = localStorage.getItem(LANG_KEY);
+    if (saved === "en" || saved === "vi") return saved;
+  } catch {
+    // Storage can be blocked; fall back to the browser language.
+  }
+  return typeof navigator !== "undefined" && /^vi\b/i.test(navigator.language || "") ? "vi" : "en";
+}
+
+// Whether the host page or the system asks for a dark theme.
+function prefersDark() {
+  if (typeof document === "undefined") return false;
+  return (
+    document.documentElement.classList.contains("dark") ||
+    (typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches)
+  );
+}
 
 // useLayoutEffect in the browser, useEffect when rendered without a DOM.
 const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
-// Initials from the first two words of a name.
-function initials(name) {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0].toUpperCase())
-    .join("");
-}
-
 // Short uppercase mark printed on a project's generated art.
 function projectMark(project) {
   return (project.mark || project.title.split(/\s+/)[0] || "").toUpperCase().slice(0, 6);
+}
+
+// Short project name for the live-demo links.
+function shortTitle(project) {
+  return project.short || project.title.split(/\s+/)[0];
 }
 
 // A coloured folder body with a tab on its top edge at `tabAt` (0 = left, 1 = right).
@@ -151,41 +166,47 @@ function FolderTabs({ items, active, onChange, label, idBase }) {
 }
 
 // One-page folder-tab portfolio: cover, contents, about, work, process, testimonials and contact.
-export default function FolderTabPortfolio({
-  name = defaults.profile.name,
-  localName = defaults.profile.localName,
-  handle = defaults.profile.handle,
-  signature,
-  years = defaults.profile.years,
-  role = defaults.profile.role,
-  disciplines = defaults.profile.disciplines,
-  word = defaults.profile.word,
-  tag = defaults.profile.tag,
-  subtitle = defaults.profile.subtitle,
-  notes = defaults.profile.notes,
-  blurb = defaults.profile.blurb,
-  greeting = defaults.profile.greeting,
-  photo,
-  highlights = defaults.highlights,
-  timeline = defaults.timeline,
-  categories = defaults.categories,
-  projects = defaults.projects,
-  chapters = defaults.chapters,
-  steps = defaults.steps,
-  words = defaults.words,
-  email = defaults.profile.email,
-  contacts = defaults.contacts,
-  timeZone = defaults.profile.timeZone,
-  location = defaults.profile.location,
-  sectionLabels = defaults.sectionLabels,
-  availability = defaults.availability,
-  colors,
-  ligatures = true,
-  defaultTheme = "system",
-  onThemeChange,
-  height = "100svh",
-  className,
-}) {
+// Defaults come from data.js and follow the language switch. A prop replaces its default as given:
+// props are not translated, and a `ui` prop must be complete.
+export default function FolderTabPortfolio(props) {
+  const [lang, setLang] = useState(initialLang);
+  const defaults = useMemo(() => localize(content, lang), [lang]);
+  const {
+    name = defaults.profile.name,
+    shortName = defaults.profile.shortName,
+    localName = defaults.profile.localName,
+    signature,
+    years = defaults.profile.years,
+    role = defaults.profile.role,
+    disciplines = defaults.profile.disciplines,
+    word = defaults.profile.word,
+    tag = defaults.profile.tag,
+    subtitle = defaults.profile.subtitle,
+    notes = defaults.profile.notes,
+    lead = defaults.profile.lead,
+    blurb = defaults.profile.blurb,
+    greeting = defaults.profile.greeting,
+    photo = defaults.profile.photo,
+    highlights = defaults.highlights,
+    timeline = defaults.timeline,
+    categories = defaults.categories,
+    projects = defaults.projects,
+    chapters = defaults.chapters,
+    steps = defaults.steps,
+    words = defaults.words,
+    email = defaults.profile.email,
+    contacts = defaults.contacts,
+    timeZone = defaults.profile.timeZone,
+    location = defaults.profile.location,
+    availability = defaults.profile.availability,
+    ui = defaults.ui,
+    colors,
+    ligatures = true,
+    defaultTheme = "system",
+    onThemeChange,
+    height = "100svh",
+    className,
+  } = props;
   const uid = useId().replace(/:/g, "");
   const rootRef = useRef(null);
   const sheetRefs = useRef({});
@@ -195,14 +216,17 @@ export default function FolderTabPortfolio({
   const closeButtonRef = useRef(null);
   const photoRef = useRef(null);
   const palette = useMemo(() => ({ ...DEFAULT_COLORS, ...colors }), [colors]);
-  const signatureText = signature ?? name.split(/\s+/)[0] ?? name;
-  const firstName = name.split(/\s+/)[0] || name;
-  const [theme, setTheme] = useState(defaultTheme === "dark" ? "dark" : "light");
+  const firstName = shortName || name.split(/\s+/)[0] || name;
+  const signatureText = signature ?? firstName;
+  // The name as written in the current language, for labels and credits.
+  const displayName = lang === "vi" && localName ? localName : name;
+  const [theme, setTheme] = useState(() =>
+    defaultTheme === "dark" || (defaultTheme === "system" && prefersDark()) ? "dark" : "light",
+  );
   const [activeSection, setActiveSection] = useState("cover");
   const [openChapter, setOpenChapter] = useState(0);
   const [workFilter, setWorkFilter] = useState("all");
   const [stepIndex, setStepIndex] = useState(0);
-  const [activeJob, setActiveJob] = useState(Math.max(0, timeline.length - 1));
   const [openProject, setOpenProject] = useState(null);
   const [toast, setToast] = useState(null);
   const [indicator, setIndicator] = useState({ x: 0, width: 0 });
@@ -217,20 +241,20 @@ export default function FolderTabPortfolio({
   const countIn = (categoryId) => projects.filter((project) => project.category === categoryId).length;
   const sheets = useMemo(
     () =>
-      SHEETS.filter((sheet) =>
-        sheet.id === "contents"
+      SHEETS.filter((id) =>
+        id === "contents"
           ? chapters.length > 0
-          : sheet.id === "work"
+          : id === "work"
             ? projects.length > 0
-            : sheet.id === "process"
+            : id === "process"
               ? steps.length > 0
-              : sheet.id === "words"
+              : id === "words"
                 ? words.length > 0
                 : true,
       ),
     [chapters.length, projects.length, steps.length, words.length],
   );
-  const pageNumber = (id) => sheets.findIndex((sheet) => sheet.id === id) + 1;
+  const pageNumber = (id) => sheets.indexOf(id) + 1;
   const visibleProjects = useMemo(
     () =>
       projects
@@ -241,10 +265,7 @@ export default function FolderTabPortfolio({
 
   useEffect(() => {
     if (defaultTheme !== "system") return;
-    const prefersDark =
-      document.documentElement.classList.contains("dark") ||
-      (typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches);
-    setTheme(prefersDark ? "dark" : "light");
+    setTheme(prefersDark() ? "dark" : "light");
   }, [defaultTheme]);
 
   const toggleTheme = useCallback(() => {
@@ -254,6 +275,22 @@ export default function FolderTabPortfolio({
       return next;
     });
   }, [onThemeChange]);
+  const otherLang = lang === "en" ? "vi" : "en";
+  const toggleLang = () => {
+    setLang(otherLang);
+    setToast(null);
+    try {
+      localStorage.setItem(LANG_KEY, otherLang);
+    } catch {
+      // Storage can be blocked; the choice then lasts for this visit only.
+    }
+  };
+
+  useEffect(() => {
+    document.documentElement.lang = lang;
+    if (ui.docTitle) document.title = ui.docTitle;
+  }, [lang, ui.docTitle]);
+
   const showToast = useCallback((text) => setToast({ id: Date.now(), text }), []);
 
   useEffect(() => {
@@ -263,7 +300,7 @@ export default function FolderTabPortfolio({
   }, [toast]);
 
   const copyEmail = useCallback(() => {
-    const copied = () => showToast("Copied " + email);
+    const copied = () => showToast(ui.copied(email));
     const fallback = () => {
       const textarea = document.createElement("textarea");
       textarea.value = email;
@@ -281,7 +318,7 @@ export default function FolderTabPortfolio({
     };
     if (navigator.clipboard?.writeText) navigator.clipboard.writeText(email).then(copied, fallback);
     else fallback();
-  }, [email, showToast]);
+  }, [email, showToast, ui]);
   const scrollToSheet = useCallback((id) => {
     const sheet = sheetRefs.current[id];
     if (!sheet) return;
@@ -303,8 +340,8 @@ export default function FolderTabPortfolio({
       },
       { rootMargin: "-45% 0px -50% 0px" },
     );
-    for (const sheet of sheets) {
-      const element = sheetRefs.current[sheet.id];
+    for (const id of sheets) {
+      const element = sheetRefs.current[id];
       if (element) observer.observe(element);
     }
     return () => observer.disconnect();
@@ -344,7 +381,7 @@ export default function FolderTabPortfolio({
         behavior: "smooth",
       });
     }
-  }, [activeSection, sheets]);
+  }, [activeSection, sheets, lang]);
 
   useEffect(() => {
     const tick = () => {
@@ -368,8 +405,9 @@ export default function FolderTabPortfolio({
     return () => clearInterval(timer);
   }, [timeZone]);
 
-  const openProjectDetails = (index) => {
-    returnFocusRef.current = document.activeElement;
+  // The card is passed in: Safari does not focus a button on click, so activeElement would be the page.
+  const openProjectDetails = (index, opener) => {
+    returnFocusRef.current = opener;
     setOpenProject(index);
   };
   const closeProject = useCallback(() => {
@@ -388,13 +426,31 @@ export default function FolderTabPortfolio({
     [visibleProjects],
   );
 
+  // The dialog takes focus when it opens. Paging leaves focus where it is, since Prev/Next stay mounted;
+  // focus that was on a link of the replaced text goes back to Close.
   useEffect(() => {
     if (openProject == null) return;
-    closeButtonRef.current?.focus();
+    const dialog = closeButtonRef.current?.closest('[role="dialog"]');
+    if (dialog && !dialog.contains(document.activeElement)) closeButtonRef.current.focus();
+  }, [openProject]);
+
+  useEffect(() => {
+    if (openProject == null) return;
     const handleKey = (event) => {
       if (event.key === "Escape") closeProject();
       else if (event.key === "ArrowRight") stepProject(1);
       else if (event.key === "ArrowLeft") stepProject(-1);
+      else if (event.key === "Tab") {
+        // Keep Tab inside the dialog, as aria-modal promises.
+        const dialog = closeButtonRef.current?.closest('[role="dialog"]');
+        const focusable = dialog ? [...dialog.querySelectorAll("a[href], button")] : [];
+        if (!focusable.length) return;
+        const edge = focusable[event.shiftKey ? 0 : focusable.length - 1];
+        if (document.activeElement === edge || !dialog.contains(document.activeElement)) {
+          event.preventDefault();
+          focusable[event.shiftKey ? focusable.length - 1 : 0].focus();
+        }
+      }
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
@@ -434,12 +490,13 @@ export default function FolderTabPortfolio({
       {disciplines.slice(0, 3).map((discipline) => (
         <span key={discipline}>{discipline}</span>
       ))}
-      <span data-on="true">{SHEETS.find((sheet) => sheet.id === id)?.page}</span>
+      <span data-on="true">{ui.pages[id]}</span>
       <span>{pad2(pageNumber(id)) + " / " + pad2(sheets.length)}</span>
     </div>
   );
   const renderHead = (id, label, heading, { local, withSig, kicker } = {}) => (
-    <div className="ftp-head">
+    // A heading with marks above its letters needs room over the cap line, or the marks run into the tag.
+    <div className="ftp-head" data-marks={MARKS_ABOVE.test(heading.normalize("NFD")) ? "true" : undefined}>
       <span className="ftp-plus" style={{ left: -18, top: -6 }} />
       <span className="ftp-plus" style={{ right: -18, top: -6 }} />
       <StrokeText
@@ -461,11 +518,7 @@ export default function FolderTabPortfolio({
             ligatures={ligatures}
           />
         </h2>
-        {local && (
-          <span className="ftp-head-local" lang="vi">
-            {local}
-          </span>
-        )}
+        {local && <span className="ftp-head-local">{local}</span>}
       </div>
       {withSig && <Signature text={signatureText} className="ftp-head-sig" delay={500} />}
       {kicker && (
@@ -476,12 +529,9 @@ export default function FolderTabPortfolio({
     </div>
   );
   const deckCategories = categories.slice(0, DECK_SLOTS.length);
-  const deckFolds = deckCategories
-    .map((category, index) => ({ category, index, slot: DECK_SLOTS[index] }))
-    .sort((a, b) => a.slot.top - b.slot.top);
   const activeProject = openProject != null ? projects[openProject] : null;
   const filterTabs = [
-    { id: "all", label: "All", tone: "blue", count: projects.length },
+    { id: "all", label: ui.all, tone: "blue", count: projects.length },
     ...categories
       .filter((category) => countIn(category.id) > 0)
       .map((category) => ({
@@ -493,8 +543,11 @@ export default function FolderTabPortfolio({
   ];
   const filterTone = workFilter === "all" ? "blue" : toneOf(workFilter);
   const quickLinks = categories.slice(0, 3);
+  const liveProjects = projects.filter((project) => project.href).slice(0, 3);
   const toneAt = (index) => TONES[index % TONES.length];
   const endYear = years.split(/[–-]/).pop();
+  // Where the email may wrap: before its last "@", if it has one.
+  const emailAt = email.lastIndexOf("@");
   const currentStep = Math.min(stepIndex, steps.length - 1);
   const step = steps[currentStep];
 
@@ -503,6 +556,7 @@ export default function FolderTabPortfolio({
       ref={rootRef}
       className={"ftp-root" + (className ? " " + className : "")}
       data-theme={theme}
+      lang={lang}
       style={rootStyle}
     >
       <header className="ftp-mast">
@@ -515,11 +569,8 @@ export default function FolderTabPortfolio({
               tracking={20}
               color="#ffffff"
               ligatures={ligatures}
-              label={word + ", " + name}
+              label={word + ", " + displayName}
             />
-            <span className="ftp-reg" aria-hidden="true">
-              ®
-            </span>
           </div>
           <div className="ftp-mast-notes">
             {notes.map((note, index) => (
@@ -533,7 +584,7 @@ export default function FolderTabPortfolio({
       </header>
 
       <div className="ftp-navwrap">
-        <nav className="ftp-nav" aria-label="Portfolio pages">
+        <nav className="ftp-nav" aria-label={ui.labels.pages}>
           <span className="ftp-count" aria-hidden="true">
             {pad2(pageNumber(activeSection))}
             <small>/{pad2(sheets.length)}</small>
@@ -547,26 +598,35 @@ export default function FolderTabPortfolio({
                 opacity: indicator.width ? 1 : 0,
               }}
             />
-            {sheets.map((sheet) => (
+            {sheets.map((id) => (
               <button
-                key={sheet.id}
+                key={id}
                 type="button"
                 ref={(element) => {
-                  navLinkRefs.current[sheet.id] = element;
+                  navLinkRefs.current[id] = element;
                 }}
                 className="ftp-link"
-                aria-current={activeSection === sheet.id ? "true" : undefined}
-                onClick={() => scrollToSheet(sheet.id)}
+                aria-current={activeSection === id ? "true" : undefined}
+                onClick={() => scrollToSheet(id)}
               >
-                {sheet.label}
+                {ui.nav[id]}
               </button>
             ))}
           </div>
           <button
             type="button"
+            className="ftp-icon ftp-lang"
+            onClick={toggleLang}
+            aria-label={otherLang.toUpperCase() + ": " + ui.labels.switchLanguage}
+            lang={otherLang}
+          >
+            {otherLang.toUpperCase()}
+          </button>
+          <button
+            type="button"
             className="ftp-icon"
             onClick={toggleTheme}
-            aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+            aria-label={theme === "dark" ? ui.labels.toLight : ui.labels.toDark}
           >
             <ThemeIcon dark={theme === "dark"} />
           </button>
@@ -585,7 +645,7 @@ export default function FolderTabPortfolio({
               className="ftp-cover-tag"
               weight={8}
               outline={1.4}
-              color="var(--ftp-muted)"
+              color="var(--ftp-quiet)"
               decorative
             />
             <h1 id={uid + "-cover-h"} style={{ position: "relative" }}>
@@ -598,12 +658,12 @@ export default function FolderTabPortfolio({
                 color="var(--ftp-blue)"
                 ligatures={ligatures}
                 delay={150}
-                label={word + " — " + name}
+                label={word + " — " + displayName}
               />
             </h1>
           </div>
           <div className="ftp-cover-mid">
-            <div className="ftp-sub" lang="vi">
+            <div className="ftp-sub">
               {subtitle.map((part, index) => (
                 <Fragment key={index}>
                   {index > 0 && " "}
@@ -614,12 +674,31 @@ export default function FolderTabPortfolio({
             </div>
             <div>
               <button type="button" className="ftp-pill" onClick={() => scrollToSheet("about")}>
-                {localName ? localName + " · " : ""}
-                {role}
+                <span>
+                  {localName ? localName + " · " : ""}
+                  <span style={{ whiteSpace: "nowrap" }}>{role}</span>
+                </span>
                 <span className="ftp-pill-arrow">
                   <Arrow dir="down" />
                 </span>
               </button>
+              {liveProjects.length > 0 && (
+                <div className="ftp-demos" role="group" aria-labelledby={uid + "-demos"}>
+                  <span id={uid + "-demos"}>{ui.liveDemos}</span>
+                  {liveProjects.map((project, index) => (
+                    <a
+                      key={shortTitle(project) + index}
+                      className="ftp-demo"
+                      href={project.href}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {shortTitle(project)} <Arrow dir="ne" size={12} />
+                    </a>
+                  ))}
+                </div>
+              )}
+              <p className="ftp-blurb">{lead || blurb}</p>
               <div className="ftp-qlinks">
                 {quickLinks.map((category) => (
                   <button
@@ -632,48 +711,55 @@ export default function FolderTabPortfolio({
                   </button>
                 ))}
               </div>
-              <p className="ftp-blurb">{blurb}</p>
             </div>
           </div>
           {deckCategories.length > 0 && (
-            <div className="ftp-deck" style={{ "--dhm": 54 * deckCategories.length + 140 + "px" }}>
-              {deckFolds.map(({ category, index, slot }) => (
-                <Folder
-                  key={category.id}
-                  as="button"
-                  tone={category.tone}
-                  glass={slot.top > 40}
-                  tabAt={slot.tab}
-                  className="ftp-dfold ftp-dfold-btn"
-                  style={{
-                    "--l": slot.left,
-                    "--w": slot.width,
-                    "--t": slot.top + "px",
-                    "--mt": index * 54 + "px",
-                  }}
-                  tab={
-                    <>
-                      {category.label}
-                      <span className="ftp-tchip">{pad2(countIn(category.id))}</span>
-                      <Arrow size={11} />
-                    </>
-                  }
-                  onClick={() => openCategory(category.id)}
-                  aria-label={"Open " + category.label + ", " + countIn(category.id) + " projects"}
-                >
-                  <span className="ftp-dl">
-                    <span className="ftp-dl-local" lang="vi">
-                      {category.local || category.label}
+            <div
+              className="ftp-deck"
+              style={{
+                "--dh": deckCategories.length > 3 ? "394px" : undefined,
+                "--dhm": 78 * deckCategories.length + 72 + "px",
+              }}
+            >
+              {deckCategories.map((category, index) => {
+                const slot = DECK_SLOTS[index];
+                return (
+                  <Folder
+                    key={category.id}
+                    as="button"
+                    tone={category.tone}
+                    tabAt={slot.tab}
+                    className="ftp-dfold ftp-dfold-btn"
+                    data-front={index === deckCategories.length - 1 ? "true" : undefined}
+                    style={{
+                      "--l": slot.left,
+                      "--w": slot.width,
+                      "--t": slot.top + "px",
+                      "--z": slot.top,
+                      "--mt": index * 78 + "px",
+                      "--mz": index,
+                    }}
+                    tab={
+                      <>
+                        {category.label}
+                        <span className="ftp-tchip">{pad2(countIn(category.id))}</span>
+                        <Arrow size={11} />
+                      </>
+                    }
+                    onClick={() => openCategory(category.id)}
+                    aria-label={category.label + ", " + ui.projectCount(countIn(category.id))}
+                  >
+                    <span className="ftp-dl">
+                      <span className="ftp-dl-local">{category.label}</span>
+                      <span className="ftp-dl-n">{pad2(index + 1)}</span>
                     </span>
-                    <span className="ftp-dl-n">{pad2(index + 1)}</span>
-                  </span>
-                  <span className="ftp-dl-en" style={{ display: "block" }}>
-                    {category.label} · {countIn(category.id)}{" "}
-                    {countIn(category.id) === 1 ? "work" : "works"}
-                  </span>
-                  {index === 2 && <span className="ftp-dl-years">{years}</span>}
-                </Folder>
-              ))}
+                    <span className="ftp-dl-en">{ui.projectCount(countIn(category.id))}</span>
+                    {index === 2 && deckCategories.length <= 3 && (
+                      <span className="ftp-dl-years">{years}</span>
+                    )}
+                  </Folder>
+                );
+              })}
             </div>
           )}
         </section>
@@ -681,14 +767,9 @@ export default function FolderTabPortfolio({
         {chapters.length > 0 && (
           <section className="ftp-sheet ftp-rv" {...sheetProps("contents")}>
             {renderMeta("contents")}
-            {renderHead("contents", "(" + pad2(chapters.length) + ")", "Catalogs", {
-              local: sectionLabels.contents,
-              kicker:
-                "Table of contents for " +
-                name +
-                "'s " +
-                years +
-                " portfolio. Open a folder to see what is inside.",
+            {renderHead("contents", "(" + pad2(chapters.length) + ")", ui.headings.contents, {
+              local: ui.sectionCount(chapters.length),
+              kicker: ui.kickers.contents,
             })}
             <div className="ftp-band-list">
               {chapters.map((chapter, index) => {
@@ -701,12 +782,7 @@ export default function FolderTabPortfolio({
                     tabAt={tabAt}
                     className="ftp-band"
                     data-open={open ? "true" : "false"}
-                    tab={
-                      <>
-                        {"Program " + (index + 1)}
-                        <Arrow size={12} />
-                      </>
-                    }
+                    tab={<Arrow size={12} />}
                   >
                     <button
                       type="button"
@@ -720,11 +796,6 @@ export default function FolderTabPortfolio({
                         <span className="ftp-band-t" style={{ display: "block" }}>
                           {chapter.title}
                         </span>
-                        {open && chapter.local && (
-                          <span className="ftp-band-local" lang="vi">
-                            {chapter.local}
-                          </span>
-                        )}
                       </span>
                       {open && chapter.points && chapter.points.length > 0 && (
                         <ul className="ftp-band-pts">
@@ -734,23 +805,17 @@ export default function FolderTabPortfolio({
                         </ul>
                       )}
                     </button>
-                    <div className="ftp-band-fold" id={uid + "-ch-" + index}>
+                    <div className="ftp-band-fold" id={uid + "-ch-" + index} aria-hidden={!open}>
                       <div>
-                        {chapter.target && sheets.some((sheet) => sheet.id === chapter.target) && (
+                        {chapter.target && sheets.includes(chapter.target) && (
                           <div className="ftp-band-go">
-                            <p>
-                              {"Chapter " +
-                                pad2(index + 1) +
-                                " · page " +
-                                pad2(pageNumber(chapter.target))}
-                            </p>
                             <button
                               type="button"
                               className="ftp-go"
                               tabIndex={open ? 0 : -1}
                               onClick={() => scrollToSheet(chapter.target)}
                             >
-                              Open chapter <Arrow size={12} />
+                              {ui.goTo(chapter.title)} <Arrow size={12} />
                             </button>
                           </div>
                         )}
@@ -765,7 +830,7 @@ export default function FolderTabPortfolio({
 
         <section className="ftp-sheet ftp-rv" {...sheetProps("about")}>
           {renderMeta("about")}
-          {renderHead("about", "#" + firstName, "About me", { withSig: true })}
+          {renderHead("about", "#" + firstName, ui.headings.about, { withSig: true })}
           <div className="ftp-about">
             <div
               className="ftp-photo"
@@ -776,14 +841,23 @@ export default function FolderTabPortfolio({
               <Folder
                 tone="blue"
                 tabAt={0.08}
-                tab={initials(name) + " · " + handle.replace(/^@/, "").split(".")[0]}
+                tab={location ? ui.basedIn(location) : name}
                 bodyClass="ftp-photo-body"
               >
                 <div className="ftp-photo-frame">
                   {typeof photo === "string" ? (
-                    <img src={photo} alt={name} width={300} height={360} style={{ maxWidth: "none" }} />
+                    <img
+                      src={photo}
+                      alt={displayName}
+                      width={300}
+                      height={360}
+                      loading="lazy"
+                      style={{ maxWidth: "none" }}
+                    />
                   ) : (
-                    (photo ?? <PortraitIllustration name={name} seed={hashString(name)} />)
+                    (photo ?? (
+                      <PortraitIllustration label={ui.photoOf(displayName)} seed={hashString(name)} />
+                    ))
                   )}
                 </div>
                 <div className="ftp-photo-glass" style={{ color: "var(--ftp-blue)" }}>
@@ -799,7 +873,7 @@ export default function FolderTabPortfolio({
                 </span>
                 <span>
                   {greeting} <b>{localName || name}</b>!
-                  {localName ? (
+                  {localName && lang === "en" ? (
                     <span
                       style={{
                         fontWeight: 500,
@@ -822,10 +896,7 @@ export default function FolderTabPortfolio({
                     <div key={highlight.label + index}>
                       <span
                         className="ftp-badge"
-                        style={{
-                          background: palette[highlight.tone ?? (index % 2 ? "blue" : "green")],
-                          color: highlight.tone === "yellow" ? "#5d5434" : "#fff",
-                        }}
+                        data-tone={highlight.tone ?? (index % 2 ? "blue" : "green")}
                       >
                         {highlight.label}
                       </span>
@@ -840,18 +911,15 @@ export default function FolderTabPortfolio({
               )}
               {timeline.length > 0 && (
                 <div className="ftp-tl">
-                  <span className="ftp-badge" style={{ background: palette.blue, color: "#fff" }}>
-                    Work experience
+                  <span className="ftp-badge" data-tone="blue">
+                    {ui.workExperience}
                   </span>
                   <ol className="ftp-tl-track" style={{ "--n": timeline.length }}>
                     {timeline.map((job, index) => (
                       <li
                         key={job.from + index}
                         className="ftp-tl-item"
-                        data-on={activeJob === index ? "true" : "false"}
-                        onPointerEnter={() => setActiveJob(index)}
-                        onFocus={() => setActiveJob(index)}
-                        tabIndex={0}
+                        data-on={index === timeline.length - 1 ? "true" : "false"}
                       >
                         <span className="ftp-tl-date" style={{ display: "block" }}>
                           {job.from}–{job.to}
@@ -873,9 +941,7 @@ export default function FolderTabPortfolio({
                   {contacts.map((contact, index) => {
                     const content = (
                       <>
-                        <i style={{ background: palette[TONES[index % 3]], color: "#fff" }}>
-                          {contact.label.slice(0, 1)}
-                        </i>
+                        <i data-tone={TONES[index % 3]}>{contact.label.slice(0, 1)}</i>
                         {contact.value}
                       </>
                     );
@@ -905,17 +971,16 @@ export default function FolderTabPortfolio({
         {projects.length > 0 && (
           <section className="ftp-sheet ftp-rv" {...sheetProps("work")}>
             {renderMeta("work")}
-            {renderHead("work", "(" + pad2(projects.length) + ")", "Works", {
-              local: sectionLabels.work,
-              kicker:
-                "Filter the cabinet by folder. Open any file for its details page; arrow keys page through.",
+            {renderHead("work", "(" + pad2(projects.length) + ")", ui.headings.work, {
+              local: ui.projectCount(projects.length),
+              kicker: ui.kickers.work,
             })}
             <div className="ftp-filter">
               <FolderTabs
                 items={filterTabs}
                 active={workFilter}
                 onChange={setWorkFilter}
-                label="Filter work by category"
+                label={ui.labels.filter}
                 idBase={uid + "-wf"}
               />
               <div className="ftp-bar" style={{ "--c": palette[filterTone] }} />
@@ -928,51 +993,70 @@ export default function FolderTabPortfolio({
               aria-labelledby={uid + "-wf-tab-" + workFilter}
             >
               {visibleProjects.map(({ project, index }, position) => (
-                <Folder
-                  key={project.title + index}
-                  as="button"
-                  tone={toneOf(project.category)}
-                  tabAt={Math.min(0.85, (position * 0.37) % 1)}
-                  className="ftp-card"
-                  style={{ "--i": position }}
-                  tab={
-                    <>
-                      {categoryById[project.category]?.label ?? project.category}
-                      <span className="ftp-tchip">{pad2(index + 1)}</span>
-                    </>
-                  }
-                  onClick={() => openProjectDetails(index)}
-                  aria-haspopup="dialog"
-                  aria-label={project.title + ", " + project.year + ". Open details"}
-                >
-                  <span className="ftp-card-art" style={{ display: "block" }}>
-                    {project.image ? (
-                      <img src={project.image} alt="" width={320} height={220} style={{ maxWidth: "none" }} />
-                    ) : (
-                      <ProjectArt
-                        kind={kindOf(project.category)}
-                        seed={hashString(project.title)}
-                        mark={projectMark(project)}
-                        colors={palette}
-                      />
-                    )}
-                  </span>
-                  <span className="ftp-card-cap">
-                    <span>
-                      <span className="ftp-card-t" style={{ display: "block" }}>
-                        {project.title}
-                      </span>
-                      {project.local && (
-                        <span className="ftp-card-l" style={{ display: "block" }} lang="vi">
-                          {project.local}
-                        </span>
+                // The card is a button, so its live-demo link sits beside it, not inside it.
+                <div key={project.title + index} className="ftp-cardwrap" style={{ "--i": position }}>
+                  <Folder
+                    as="button"
+                    tone={toneOf(project.category)}
+                    tabAt={Math.min(0.85, (position * 0.37) % 1)}
+                    className="ftp-card"
+                    tab={
+                      <>
+                        {categoryById[project.category]?.label ?? project.category}
+                        <span className="ftp-tchip">{pad2(index + 1)}</span>
+                      </>
+                    }
+                    onClick={(event) => openProjectDetails(index, event.currentTarget)}
+                    aria-haspopup="dialog"
+                    aria-label={project.title + ", " + project.year + ". " + ui.openDetails}
+                  >
+                    <span className="ftp-card-art" style={{ display: "block" }}>
+                      {project.image ? (
+                        <img
+                          src={project.image}
+                          alt=""
+                          width={320}
+                          height={220}
+                          loading="lazy"
+                          style={{ maxWidth: "none" }}
+                        />
+                      ) : (
+                        <ProjectArt
+                          kind={kindOf(project.category)}
+                          seed={hashString(projectMark(project))}
+                          mark={projectMark(project)}
+                          colors={palette}
+                        />
                       )}
                     </span>
-                    <span className="ftp-card-y">{project.year}</span>
-                  </span>
-                </Folder>
+                    <span className="ftp-card-cap">
+                      <span>
+                        <span className="ftp-card-t" style={{ display: "block" }}>
+                          {project.title}
+                        </span>
+                        {project.tools && project.tools.length > 0 && (
+                          <span className="ftp-card-l" style={{ display: "block" }}>
+                            {project.tools.slice(0, 3).join(" · ")}
+                          </span>
+                        )}
+                      </span>
+                      <span className="ftp-card-y">{project.year}</span>
+                    </span>
+                  </Folder>
+                  {project.href && (
+                    <a
+                      className="ftp-card-live"
+                      href={project.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={ui.liveDemoOf(shortTitle(project))}
+                    >
+                      {ui.liveDemo} <Arrow dir="ne" size={11} />
+                    </a>
+                  )}
+                </div>
               ))}
-              {!visibleProjects.length && <p className="ftp-empty">This folder is empty for now.</p>}
+              {!visibleProjects.length && <p className="ftp-empty">{ui.emptyFolder}</p>}
             </div>
           </section>
         )}
@@ -980,8 +1064,8 @@ export default function FolderTabPortfolio({
         {steps.length > 0 && (
           <section className="ftp-sheet ftp-rv" {...sheetProps("process")}>
             {renderMeta("process")}
-            {renderHead("process", "(" + pad2(steps.length) + ")", "Process", {
-              local: sectionLabels.process,
+            {renderHead("process", "(" + pad2(steps.length) + ")", ui.headings.process, {
+              local: ui.stepCount(steps.length),
             })}
             <FolderTabs
               items={steps.map((item, index) => ({
@@ -991,7 +1075,7 @@ export default function FolderTabPortfolio({
               }))}
               active={String(currentStep)}
               onChange={(id) => setStepIndex(Number(id))}
-              label="Process steps"
+              label={ui.labels.steps}
               idBase={uid + "-ps"}
             />
             <div
@@ -1004,15 +1088,7 @@ export default function FolderTabPortfolio({
               <div key={currentStep} className="ftp-step">
                 <div>
                   <div className="ftp-step-n">{pad2(currentStep + 1)}</div>
-                  <h3 className="ftp-step-t">
-                    {step.title}
-                    {step.local && (
-                      <span className="ftp-step-l" lang="vi">
-                        {step.local}
-                      </span>
-                    )}
-                  </h3>
-                  {step.duration && <span className="ftp-step-d">{step.duration}</span>}
+                  <h3 className="ftp-step-t">{step.title}</h3>
                   <StepArt index={currentStep} />
                 </div>
                 <div>
@@ -1035,7 +1111,7 @@ export default function FolderTabPortfolio({
                       className="ftp-btn"
                       data-ghost="true"
                       onClick={() => setStepIndex((currentStep - 1 + steps.length) % steps.length)}
-                      aria-label="Previous step"
+                      aria-label={ui.previousStep}
                     >
                       <Arrow dir="left" />
                     </button>
@@ -1044,7 +1120,7 @@ export default function FolderTabPortfolio({
                       className="ftp-btn"
                       onClick={() => setStepIndex((currentStep + 1) % steps.length)}
                     >
-                      Next step <Arrow />
+                      {ui.nextStep} <Arrow />
                     </button>
                   </div>
                 </div>
@@ -1056,9 +1132,7 @@ export default function FolderTabPortfolio({
         {words.length > 0 && (
           <section className="ftp-sheet ftp-rv" {...sheetProps("words")}>
             {renderMeta("words")}
-            {renderHead("words", "(" + pad2(words.length) + ")", "Kind words", {
-              local: sectionLabels.words,
-            })}
+            {renderHead("words", "(" + pad2(words.length) + ")", ui.headings.words)}
             <div className="ftp-words">
               <span
                 className="ftp-blob"
@@ -1117,26 +1191,26 @@ export default function FolderTabPortfolio({
 
         <section className="ftp-sheet ftp-rv" {...sheetProps("contact")}>
           {renderMeta("contact")}
-          {renderHead("contact", "(:)", "Contact", { local: sectionLabels.contact, withSig: true })}
+          {renderHead("contact", ui.contactTag, ui.headings.contact, { local: location, withSig: true })}
           <div className="ftp-stack">
             <Folder
               tone="blue"
               tabAt={0.78}
               tab={
                 <>
-                  Reflections <Arrow size={12} />
+                  {ui.contactTabs.availability} <Arrow size={12} />
                 </>
               }
             >
               <div className="ftp-talk">
                 <StrokeText
-                  text="Let's talk :)"
+                  text={ui.headings.talk}
                   weight={15}
                   tracking={22}
                   color="#ffffff"
-                  label="Let's talk"
+                  label={ui.headings.talk.replace(/\s*:\)$/, "")}
                 />
-                <p>{availability(endYear)}</p>
+                <p>{availability}</p>
               </div>
             </Folder>
             <Folder
@@ -1144,20 +1218,28 @@ export default function FolderTabPortfolio({
               tabAt={0.56}
               tab={
                 <>
-                  Elevation <Arrow size={12} />
+                  {ui.contactTabs.email} <Arrow size={12} />
                 </>
               }
             >
               <div className="ftp-mail">
-                <a className="ftp-mail-a" href={"mailto:" + email}>
-                  {email}
+                <a className="ftp-mail-a" href={"mailto:" + email} aria-label={email}>
+                  {emailAt > 0 ? (
+                    <>
+                      {email.slice(0, emailAt)}
+                      <wbr />
+                      {email.slice(emailAt)}
+                    </>
+                  ) : (
+                    email
+                  )}
                 </a>
                 <div className="ftp-btns">
                   <button type="button" className="ftp-btn" onClick={copyEmail}>
-                    Copy
+                    {ui.copy}
                   </button>
                   <a className="ftp-btn" data-ghost="true" href={"mailto:" + email}>
-                    Write <Arrow dir="ne" />
+                    {ui.emailMe} <Arrow dir="ne" />
                   </a>
                 </div>
               </div>
@@ -1168,7 +1250,7 @@ export default function FolderTabPortfolio({
                 tabAt={0.3}
                 tab={
                   <>
-                    Summarize <Arrow size={12} />
+                    {ui.contactTabs.links} <Arrow size={12} />
                   </>
                 }
                 style={{ filter: "drop-shadow(0 -6px 14px rgba(27,34,52,.08))" }}
@@ -1196,12 +1278,11 @@ export default function FolderTabPortfolio({
 
         <footer className="ftp-foot">
           <span>
-            {disciplines[0] || "Visual design"}
+            {role}
             <small>
-              © {endYear} {name}
+              © {endYear} {displayName}
             </small>
           </span>
-          <span>And</span>
           {clock && (
             <span className="ftp-clock">
               <i data-day={clock.day ? "true" : "false"} />
@@ -1209,7 +1290,7 @@ export default function FolderTabPortfolio({
             </span>
           )}
           <button type="button" className="ftp-top" onClick={() => scrollToSheet("cover")}>
-            Back to cover <Arrow dir="up" size={12} />
+            {ui.backToCover} <Arrow dir="up" size={12} />
           </button>
           <span className="ftp-foot-n" aria-hidden="true">
             {pad2(pageNumber(activeSection))}
@@ -1243,65 +1324,91 @@ export default function FolderTabPortfolio({
               ref={closeButtonRef}
               className="ftp-close"
               onClick={closeProject}
-              aria-label="Close details"
+              aria-label={ui.closeDetails}
             >
-              Close ✕
+              {ui.close} ✕
             </button>
-            <div key={openProject} className="ftp-modal-grid">
-              <div className="ftp-modal-art">
+            <div className="ftp-modal-grid">
+              <div key={openProject} className="ftp-modal-art">
                 {activeProject.image ? (
                   <img src={activeProject.image} alt="" width={320} height={220} style={{ maxWidth: "none" }} />
                 ) : (
                   <ProjectArt
                     kind={kindOf(activeProject.category)}
-                    seed={hashString(activeProject.title)}
+                    seed={hashString(projectMark(activeProject))}
                     mark={projectMark(activeProject)}
                     colors={palette}
                   />
                 )}
               </div>
-              <div
-                className="ftp-modal-info"
-                style={{ animation: "ftp-in .5s cubic-bezier(.2,.8,.2,1) both" }}
-              >
-                <div>
+              <div className="ftp-modal-info">
+                <div
+                  key={openProject}
+                  className="ftp-modal-text"
+                  style={{ animation: "ftp-in .5s cubic-bezier(.2,.8,.2,1) both" }}
+                >
                   <h3 className="ftp-modal-t" id={uid + "-dlg-t"}>
                     {activeProject.title}
                   </h3>
-                  {activeProject.local && (
-                    <p className="ftp-modal-l" lang="vi">
-                      {activeProject.local}
+                  <p className="ftp-modal-p">{activeProject.summary}</p>
+                  {(activeProject.href || activeProject.repo || activeProject.note) && (
+                    <div className="ftp-modal-links">
+                      {(activeProject.href || activeProject.repo) && (
+                        <div className="ftp-btns">
+                          {activeProject.href && (
+                            <a
+                              className="ftp-btn"
+                              href={activeProject.href}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              {ui.liveDemo} <Arrow dir="ne" />
+                            </a>
+                          )}
+                          {activeProject.repo && (
+                            <a
+                              className="ftp-btn"
+                              data-ghost="true"
+                              href={activeProject.repo}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              {ui.code} <Arrow dir="ne" />
+                            </a>
+                          )}
+                        </div>
+                      )}
+                      {activeProject.note && <p className="ftp-modal-note">{activeProject.note}</p>}
+                    </div>
+                  )}
+                  {activeProject.body?.map((paragraph, index) => (
+                    <p key={index} className="ftp-modal-p">
+                      {paragraph}
                     </p>
-                  )}
+                  ))}
+                  <dl className="ftp-dl2">
+                    <dt>{ui.details.year}</dt>
+                    <dd>{activeProject.year}</dd>
+                    {activeProject.madeFor && (
+                      <>
+                        <dt>{ui.details.madeFor}</dt>
+                        <dd>{activeProject.madeFor}</dd>
+                      </>
+                    )}
+                    {activeProject.role && (
+                      <>
+                        <dt>{ui.details.role}</dt>
+                        <dd>{activeProject.role}</dd>
+                      </>
+                    )}
+                    {activeProject.tools && activeProject.tools.length > 0 && (
+                      <>
+                        <dt>{ui.details.tools}</dt>
+                        <dd>{activeProject.tools.join(" · ")}</dd>
+                      </>
+                    )}
+                  </dl>
                 </div>
-                <p className="ftp-modal-p">{activeProject.summary}</p>
-                {activeProject.body?.map((paragraph, index) => (
-                  <p key={index} className="ftp-modal-p">
-                    {paragraph}
-                  </p>
-                ))}
-                <dl className="ftp-dl2">
-                  <dt>Year</dt>
-                  <dd>{activeProject.year}</dd>
-                  {activeProject.client && (
-                    <>
-                      <dt>Client</dt>
-                      <dd>{activeProject.client}</dd>
-                    </>
-                  )}
-                  {activeProject.role && (
-                    <>
-                      <dt>Role</dt>
-                      <dd>{activeProject.role}</dd>
-                    </>
-                  )}
-                  {activeProject.tools && activeProject.tools.length > 0 && (
-                    <>
-                      <dt>Tools</dt>
-                      <dd>{activeProject.tools.join(" · ")}</dd>
-                    </>
-                  )}
-                </dl>
                 <div className="ftp-modal-nav">
                   <div className="ftp-btns">
                     <button
@@ -1309,7 +1416,7 @@ export default function FolderTabPortfolio({
                       className="ftp-btn"
                       data-ghost="true"
                       onClick={() => stepProject(-1)}
-                      aria-label="Previous project"
+                      aria-label={ui.previousProject}
                     >
                       <Arrow dir="left" />
                     </button>
@@ -1318,16 +1425,11 @@ export default function FolderTabPortfolio({
                       className="ftp-btn"
                       data-ghost="true"
                       onClick={() => stepProject(1)}
-                      aria-label="Next project"
+                      aria-label={ui.nextProject}
                     >
                       <Arrow />
                     </button>
                   </div>
-                  {activeProject.href && (
-                    <a className="ftp-btn" href={activeProject.href} target="_blank" rel="noreferrer">
-                      Visit <Arrow dir="ne" />
-                    </a>
-                  )}
                 </div>
               </div>
             </div>

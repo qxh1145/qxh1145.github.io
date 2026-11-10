@@ -9,6 +9,7 @@ const GLYPHS = {
   },
   C: { w: 118, d: "M109.5 17.9 A62 50 0 1 0 109.5 82.1" },
   D: { w: 104, d: "M0 0 V100 M0 0 H52 A52 50 0 0 1 52 100 H0" },
+  Đ: { w: 118, d: "M14 0 V100 M14 0 H66 A52 50 0 0 1 66 100 H14 M0 50 H50" },
   E: { w: 100, d: "M100 0 H0 V100 H100 M0 50 H86" },
   F: { w: 100, d: "M100 0 H0 V100 M0 50 H86" },
   G: { w: 124, d: "M109.5 17.9 A62 50 0 1 0 124 50 H72" },
@@ -96,6 +97,28 @@ const LIGATURES = {
   OO: { w: 210, d: "M50 0 H160 A50 50 0 0 1 160 100 H50 A50 50 0 0 1 50 0" },
 };
 
+// Vietnamese combining marks, drawn around x = 0 on the glyph's centre line (cap line y = 0, baseline y = 100).
+const MARKS = {
+  "\u0301": "M-9 -17 L9 -39", // acute
+  "\u0300": "M9 -17 L-9 -39", // grave
+  "\u0309": "M-9 -35 Q0 -47 9 -36 Q12 -26 1 -19", // hook above
+  "\u0303": "M-16 -22 Q-8 -37 0 -28 Q8 -19 16 -33", // tilde
+  "\u0302": "M-15 -16 L0 -33 L15 -16", // circumflex
+  "\u0306": "M-14 -35 Q0 -11 14 -35", // breve
+  "\u0323": "M0 121 L0 121.5", // dot below
+};
+
+// Where a tone mark moves, as [dx, dy], on a letter that already has a circumflex or a breve:
+// to the upper right of a circumflex, and above a breve.
+const SECOND_MARK_SHIFT = {
+  "\u0302": { "\u0301": [30, -14], "\u0300": [14, -14], "\u0309": [22, -12], "\u0303": [0, -24] },
+  "\u0306": { "\u0301": [6, -28], "\u0300": [-6, -28], "\u0309": [0, -24], "\u0303": [0, -28] },
+};
+
+// The horn of Ơ and Ư, drawn from where it joins each base letter.
+const HORN = "M0 0 Q22 -2 19 -26";
+const HORN_ANCHORS = { O: [105, 14], U: [110, 4] };
+
 // Palette tone names, in the order random picks and index cycling use.
 export const TONES = ["blue", "green", "orange", "yellow"];
 
@@ -129,9 +152,44 @@ function mulberry32(seed) {
   };
 }
 
+// Scales a mark path around (0, originY), then moves it by (dx, dy).
+// Reads the numbers as alternating x and y, so a mark path may only use M, L, Q and C
+// with absolute coordinates separated by spaces.
+function placeMark(path, dx, dy, scale, originY) {
+  let isX = true;
+  return path.replace(/-?\d+(\.\d+)?/g, (number) => {
+    const value = Number(number);
+    const placed = isX ? dx + value * scale : originY + (value - originY) * scale + dy;
+    isX = !isX;
+    return round1(placed);
+  });
+}
+
+// Glyph for a letter with Vietnamese marks: the base letter's path plus one subpath per mark.
+function accentedGlyph(char, markScale) {
+  const [base, ...marks] = [...char.normalize("NFD")];
+  const glyph = GLYPHS[base];
+  if (!glyph || !marks.length) return undefined;
+  const centre = glyph.w / 2;
+  const shifts = SECOND_MARK_SHIFT[marks.find((mark) => SECOND_MARK_SHIFT[mark])] ?? {};
+  let d = glyph.d;
+  for (const mark of marks) {
+    if (mark === "\u031B") {
+      const [x, y] = HORN_ANCHORS[base] ?? [glyph.w, 4];
+      d += " " + placeMark(HORN, x, y, markScale, 0);
+    } else if (mark === "\u0323") {
+      d += " " + placeMark(MARKS[mark], centre, 0, markScale, 100);
+    } else if (MARKS[mark]) {
+      const [dx, dy] = shifts[mark] ?? [0, 0];
+      d += " " + placeMark(MARKS[mark], centre + dx * markScale, dy * markScale, markScale, 0);
+    }
+  }
+  return { w: glyph.w, d };
+}
+
 // Lays out `text` as positioned glyph paths; returns the items and total width.
-function layoutGlyphs(text, gap, useLigatures) {
-  const chars = [...text.toUpperCase()];
+function layoutGlyphs(text, gap, useLigatures, markScale = 1) {
+  const chars = [...text.normalize("NFC").toUpperCase()];
   const items = [];
   let x = 0;
   for (let n = 0; n < chars.length; n++) {
@@ -142,7 +200,7 @@ function layoutGlyphs(text, gap, useLigatures) {
       n++;
       continue;
     }
-    const glyph = GLYPHS[chars[n]];
+    const glyph = GLYPHS[chars[n]] ?? accentedGlyph(chars[n], markScale);
     if (!glyph) {
       x += SPACE_WIDTH;
       continue;
@@ -246,9 +304,11 @@ export function StrokeText({
   label,
   decorative,
 }) {
+  // Heavier strokes need larger marks to stay readable.
+  const markScale = 1 + Math.max(0, weight - 9) * 0.06;
   const layout = useMemo(
-    () => layoutGlyphs(text, tracking + weight * 0.6, ligatures),
-    [text, tracking, weight, ligatures],
+    () => layoutGlyphs(text, tracking + weight * 0.6, ligatures, markScale),
+    [text, tracking, weight, ligatures, markScale],
   );
   const pad = weight / 2 + 2;
   const width = round1(layout.width + pad * 2);
@@ -387,7 +447,7 @@ export function PalmFronds({ className }) {
 }
 
 // Placeholder portrait: a figure by the sea in front of a seeded dusk skyline.
-export function PortraitIllustration({ name, seed }) {
+export function PortraitIllustration({ label, seed }) {
   const uid = useId().replace(/:/g, "");
   const scene = useMemo(() => {
     const rand = mulberry32(seed);
@@ -424,7 +484,7 @@ export function PortraitIllustration({ name, seed }) {
       height={360}
       preserveAspectRatio="xMidYMid slice"
       role="img"
-      aria-label={"Photo of " + name}
+      aria-label={label}
     >
       <defs>
         <linearGradient id={uid + "-sky"} x1="0" y1="0" x2="0" y2="1">
@@ -660,7 +720,6 @@ export function ProjectArt({ kind, seed, mark, colors }) {
 
   if (kind === "page") {
     const accent = randomColor();
-    const price = 59 + Math.floor(rand() * 140);
     return (
       <svg {...svgProps}>
         <rect width="320" height="220" fill="#eef1f6" />
@@ -689,24 +748,12 @@ export function ProjectArt({ kind, seed, mark, colors }) {
         </g>
         <g transform="translate(170 64)">
           <rect width="118" height="40" rx="12" fill="#ffffff" />
-          <text x="14" y="26" fontFamily={font} fontSize="16" fontWeight="800" fill="#1b2234">
-            {"#" + price}
-          </text>
+          <rect x="14" y="15" width="44" height="10" rx="5" fill="#1b2234" />
           <rect x="74" y="12" width="32" height="16" rx="8" fill={colors.orange} />
           <rect x="0" y="54" width="92" height="30" rx="10" fill="#ffffff" opacity=".85" />
           <rect x="12" y="66" width="56" height="6" rx="3" fill="#c6cad5" />
           <rect x="0" y="96" width="110" height="30" rx="10" fill={accent} opacity=".9" />
-          <text
-            x="14"
-            y="116"
-            fontFamily={font}
-            fontSize="10"
-            fontWeight="700"
-            letterSpacing="1.5"
-            fill="#ffffff"
-          >
-            OPEN →
-          </text>
+          <rect x="14" y="108" width="52" height="6" rx="3" fill="#ffffff" />
         </g>
       </svg>
     );
@@ -860,7 +907,6 @@ export function ProjectArt({ kind, seed, mark, colors }) {
   const discX = 80 + rand() * 160;
   const discY = 50 + rand() * 70;
   const discRadius = 56 + rand() * 30;
-  const volume = 1 + Math.floor(rand() * 12);
   return (
     <svg {...svgProps}>
       <rect width="320" height="220" fill={background === colors.yellow ? colors.blue : background} />
@@ -881,17 +927,6 @@ export function ProjectArt({ kind, seed, mark, colors }) {
           <circle key={n} cx={252 + (n % 4) * 12} cy={128 + Math.floor(n / 4) * 12} r="2" />
         ))}
       </g>
-      <text
-        x="16"
-        y="28"
-        fontFamily={font}
-        fontSize="10"
-        fontWeight="700"
-        letterSpacing="2.5"
-        fill="#ffffff"
-      >
-        {"VOL." + pad2(volume)}
-      </text>
       <text
         x="14"
         y="200"

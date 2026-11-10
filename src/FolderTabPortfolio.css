@@ -3,10 +3,15 @@
   --ftp-sheet: #ffffff;
   --ftp-ink: #1b2234;
   --ftp-soft: #4a5268;
-  --ftp-muted: #8a91a3;
+  /* muted is for small grey text, quiet for large display text only. */
+  --ftp-muted: #5f677c;
+  --ftp-quiet: #8a91a3;
   --ftp-faint: #c6cad5;
   --ftp-line: #e3e6ed;
   --ftp-ghost: #e6e9f0;
+  /* blue-t is the brand blue adjusted for small text, on-bright the text on green and orange. */
+  --ftp-blue-t: color-mix(in srgb,var(--ftp-blue) 88%,#000);
+  --ftp-on-bright: #1b2234;
   --ftp-glass: rgba(255,255,255,.62);
   --ftp-shadow: 0 1px 2px rgba(27,34,52,.05),0 18px 40px -24px rgba(27,34,52,.28);
   position: relative;
@@ -26,6 +31,8 @@
   --ftp-ink: #eaedf6;
   --ftp-soft: #bfc5d6;
   --ftp-muted: #8790a8;
+  --ftp-quiet: #8790a8;
+  --ftp-blue-t: color-mix(in srgb,var(--ftp-blue) 72%,#fff);
   --ftp-faint: #3b445e;
   --ftp-line: #232b42;
   --ftp-ghost: #1f2740;
@@ -42,6 +49,11 @@
   outline: 2px solid var(--ftp-blue);
   outline-offset: 3px;
   border-radius: 8px;
+}
+
+.ftp-fbody :focus-visible,
+.ftp-panel :focus-visible {
+  outline-color: var(--on);
 }
 
 .ftp-root :where(button) {
@@ -102,33 +114,26 @@
   --br: 18px;
 }
 
-.ftp-folder[data-tone="blue"],
-.ftp-tabshape[data-tone="blue"],
-.ftp-panel[data-tone="blue"] {
+/* --on2 is for large or decorative marks only: it is below 4.5:1 on some tones. */
+.ftp-root [data-tone="blue"] {
   --c: var(--ftp-blue);
   --on: #ffffff;
   --on2: rgba(255,255,255,.72);
 }
 
-.ftp-folder[data-tone="green"],
-.ftp-tabshape[data-tone="green"],
-.ftp-panel[data-tone="green"] {
+.ftp-root [data-tone="green"] {
   --c: var(--ftp-green);
-  --on: #ffffff;
-  --on2: rgba(255,255,255,.78);
+  --on: var(--ftp-on-bright);
+  --on2: rgba(27,34,52,.8);
 }
 
-.ftp-folder[data-tone="orange"],
-.ftp-tabshape[data-tone="orange"],
-.ftp-panel[data-tone="orange"] {
+.ftp-root [data-tone="orange"] {
   --c: var(--ftp-orange);
-  --on: #ffffff;
-  --on2: rgba(255,255,255,.78);
+  --on: var(--ftp-on-bright);
+  --on2: rgba(27,34,52,.86);
 }
 
-.ftp-folder[data-tone="yellow"],
-.ftp-tabshape[data-tone="yellow"],
-.ftp-panel[data-tone="yellow"] {
+.ftp-root [data-tone="yellow"] {
   --c: var(--ftp-yellow);
   --on: #5d5434;
   --on2: rgba(93,84,52,.7);
@@ -238,7 +243,6 @@
   border: 1.2px solid currentColor;
   font-size: 9.5px;
   letter-spacing: .04em;
-  opacity: .9;
 }
 
 .ftp-st {
@@ -332,13 +336,6 @@
   width: auto;
 }
 
-.ftp-reg {
-  align-self: flex-start;
-  margin-top: 2px;
-  font-size: 13px;
-  font-weight: 700;
-}
-
 .ftp-mast-notes {
   display: flex;
   align-items: center;
@@ -347,7 +344,7 @@
   gap: 6px 14px;
   padding: 24px 24px 0 0;
   font-size: clamp(14px,1.7vw,20px);
-  color: var(--ftp-blue);
+  color: var(--ftp-blue-t);
   letter-spacing: .06em;
 }
 
@@ -390,7 +387,7 @@
   padding: 0 10px 0 8px;
   font-size: 12px;
   font-weight: 700;
-  color: var(--ftp-blue);
+  color: var(--ftp-blue-t);
   font-variant-numeric: tabular-nums;
   letter-spacing: .04em;
 }
@@ -447,6 +444,7 @@
 }
 
 .ftp-icon {
+  flex: none;
   width: 32px;
   height: 32px;
   border-radius: 11px;
@@ -460,6 +458,12 @@
 .ftp-icon:hover {
   background: var(--ftp-ghost);
   color: var(--ftp-ink);
+}
+
+.ftp-lang {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
 }
 
 .ftp-sun-rays {
@@ -508,7 +512,7 @@
   font-weight: 600;
   letter-spacing: .12em;
   text-transform: uppercase;
-  color: var(--ftp-blue);
+  color: var(--ftp-blue-t);
 }
 
 .ftp-meta span[data-on="true"] {
@@ -519,11 +523,11 @@
   margin: -22px calc(clamp(18px,3.4vw,44px) * -1) 0;
   padding: 12px clamp(18px,3.4vw,44px);
   background: var(--ftp-green);
-  color: #fff;
+  color: var(--ftp-on-bright);
 }
 
 .ftp-meta-bar span[data-on="true"] {
-  color: #fff;
+  color: var(--ftp-on-bright);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
@@ -571,12 +575,17 @@
   opacity: .9;
 }
 
+/* Room for one row of marks (acute, grave, hook) between the heading and its tag. The signature moves down with it. */
+.ftp-head[data-marks] {
+  --marks: clamp(12px,2.6vw,34px);
+}
+
 .ftp-head-word {
   position: relative;
   height: clamp(40px,7.4vw,92px);
   width: auto;
   max-width: 100%;
-  margin-top: 14px;
+  margin-top: calc(14px + var(--marks,0px));
 }
 
 .ftp-head-row {
@@ -598,7 +607,7 @@
 .ftp-head-sig {
   position: absolute;
   left: clamp(150px,34vw,440px);
-  top: clamp(20px,4vw,50px);
+  top: calc(clamp(20px,4vw,50px) + var(--marks,0px));
   height: clamp(56px,8.4vw,110px);
   width: auto;
   color: var(--ftp-green);
@@ -673,7 +682,7 @@
   font-weight: 500;
   line-height: 1;
   letter-spacing: .02em;
-  color: var(--ftp-muted);
+  color: var(--ftp-quiet);
   white-space: nowrap;
 }
 
@@ -695,17 +704,19 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  height: 40px;
-  padding: 0 6px 0 18px;
+  min-height: 40px;
+  padding: 6px 6px 6px 18px;
   border-radius: 12px;
   background: var(--ftp-blue);
   color: #fff;
   font-size: clamp(14px,1.6vw,18px);
   font-weight: 600;
   letter-spacing: .04em;
+  line-height: 1.3;
 }
 
 .ftp-pill-arrow {
+  flex: none;
   width: 28px;
   height: 28px;
   border-radius: 9px;
@@ -723,13 +734,16 @@
 .ftp-qlinks {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 14px;
-  margin: 14px 0 10px;
+  gap: 0 14px;
+  margin-top: 8px;
 }
 
 .ftp-qlink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
   font-size: 13px;
-  color: var(--ftp-blue);
+  color: var(--ftp-blue-t);
   letter-spacing: .02em;
   transition: transform .25s;
 }
@@ -747,10 +761,49 @@
 }
 
 .ftp-blurb {
-  font-size: 12px;
-  color: var(--ftp-muted);
+  margin-top: 14px;
+  font-size: 14px;
+  color: var(--ftp-soft);
   line-height: 1.6;
-  max-width: 420px;
+  max-width: 440px;
+}
+
+.ftp-demos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.ftp-demos > span {
+  margin-right: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ftp-muted);
+}
+
+.ftp-demo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 1.5px var(--ftp-blue);
+  color: var(--ftp-blue-t);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  transition: background-color .25s,color .25s;
+}
+
+.ftp-demo:hover {
+  background: var(--ftp-blue);
+  color: #fff;
 }
 
 .ftp-deck {
@@ -765,6 +818,7 @@
   left: calc(var(--l) * 1%);
   width: calc(var(--w) * 1%);
   top: var(--t);
+  z-index: var(--z);
   transition: transform .55s cubic-bezier(.3,1.3,.4,1);
 }
 
@@ -776,7 +830,7 @@
 .ftp-dfold:hover,
 .ftp-dfold:focus-visible {
   transform: translateY(-18px);
-  z-index: 9;
+  z-index: 200;
 }
 
 .ftp-dfold:focus-visible {
@@ -808,19 +862,20 @@
 }
 
 .ftp-dl-n {
-  font-size: clamp(20px,2.4vw,30px);
+  font-size: clamp(24px,2.4vw,30px);
   font-weight: 300;
   color: var(--on2);
   font-variant-numeric: tabular-nums;
 }
 
 .ftp-dl-en {
+  display: block;
   margin-top: 8px;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: .14em;
   text-transform: uppercase;
-  color: var(--on2);
+  color: var(--on);
 }
 
 .ftp-dl-years {
@@ -898,7 +953,7 @@
   line-height: 1;
   letter-spacing: .02em;
   text-transform: uppercase;
-  color: var(--ftp-faint);
+  color: var(--ftp-quiet);
   white-space: nowrap;
   transition: color .45s,transform .5s cubic-bezier(.3,1.3,.4,1);
 }
@@ -912,12 +967,7 @@
   transform: none;
 }
 
-.ftp-band-local {
-  display: block;
-  margin-top: 8px;
-  font-size: clamp(20px,2.8vw,34px);
-  font-weight: 700;
-  letter-spacing: .08em;
+.ftp-band[data-open="true"] .ftp-band-n {
   color: var(--on);
 }
 
@@ -963,16 +1013,7 @@
 }
 
 .ftp-band-go {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
   padding: 4px clamp(14px,2.4vw,28px) 26px calc(clamp(14px,2.4vw,28px) + 30px + clamp(14px,2.4vw,30px));
-}
-
-.ftp-band-go p {
-  font-size: 13px;
-  color: var(--on2);
 }
 
 .ftp-go {
@@ -1070,7 +1111,7 @@
 
 .ftp-cols {
   display: grid;
-  grid-template-columns: repeat(3,minmax(0,1fr));
+  grid-template-columns: repeat(2,minmax(0,1fr));
   gap: 18px 26px;
   margin-top: 26px;
 }
@@ -1126,17 +1167,9 @@
 .ftp-tl-date {
   font-size: clamp(17px,2vw,24px);
   font-weight: 700;
-  color: var(--ftp-blue);
+  color: var(--ftp-blue-t);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  filter: blur(3.2px);
-  opacity: .55;
-  transition: filter .4s,opacity .4s;
-}
-
-.ftp-tl-item[data-on="true"] .ftp-tl-date {
-  filter: none;
-  opacity: 1;
 }
 
 .ftp-tl-dot {
@@ -1180,13 +1213,14 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  min-height: 28px;
   font-size: 12.5px;
   color: var(--ftp-soft);
   transition: color .2s;
 }
 
 .ftp-contact:hover {
-  color: var(--ftp-blue);
+  color: var(--ftp-blue-t);
 }
 
 .ftp-contact i {
@@ -1241,10 +1275,6 @@
   color: var(--ftp-ink);
 }
 
-.ftp-tabbtn .ftp-tchip {
-  opacity: .7;
-}
-
 .ftp-bar {
   height: 8px;
   border-radius: 6px;
@@ -1259,12 +1289,47 @@
   margin-top: 30px;
 }
 
+.ftp-cardwrap {
+  position: relative;
+  animation: ftp-in .6s cubic-bezier(.2,.8,.2,1) both;
+  animation-delay: calc(var(--i,0) * 60ms);
+}
+
 .ftp-card {
   display: block;
   width: 100%;
   text-align: left;
-  animation: ftp-in .6s cubic-bezier(.2,.8,.2,1) both;
-  animation-delay: calc(var(--i,0) * 60ms);
+}
+
+.ftp-card-live {
+  position: absolute;
+  top: calc(var(--th,30px) + 18px);
+  right: 18px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 9px;
+  background: #fff;
+  color: var(--ftp-on-bright);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  box-shadow: 0 4px 12px -4px rgba(27,34,52,.35);
+  transition: transform .3s cubic-bezier(.3,1.5,.5,1);
+}
+
+.ftp-card-live:hover {
+  transform: translateY(-2px);
+}
+
+/* The chip is white in both themes, so its ring does not follow the theme: dark, on a white band that shows over any picture. */
+.ftp-card-live:focus-visible {
+  outline-color: var(--ftp-on-bright);
+  box-shadow: 0 0 0 3px #fff,0 4px 12px -4px rgba(27,34,52,.35);
 }
 
 .ftp-card > .ftp-fbody {
@@ -1301,6 +1366,11 @@
   transform: scale(1.05);
 }
 
+.ftp-card-art > img,
+.ftp-modal-art > img {
+  object-position: top;
+}
+
 .ftp-card-cap {
   display: flex;
   justify-content: space-between;
@@ -1318,14 +1388,15 @@
 .ftp-card-l {
   margin-top: 2px;
   font-size: 12px;
-  color: var(--on2);
+  color: var(--on);
 }
 
 .ftp-card-y {
   font-size: 12px;
   font-weight: 600;
-  color: var(--on2);
+  color: var(--on);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .ftp-empty {
@@ -1370,13 +1441,6 @@
   line-height: 1;
 }
 
-.ftp-step-l {
-  margin-left: 10px;
-  font-weight: 600;
-  opacity: .75;
-  font-size: .6em;
-}
-
 .ftp-step-b {
   font-size: 15px;
   line-height: 1.7;
@@ -1396,15 +1460,6 @@
   border: 1.5px solid var(--on2);
   font-size: 12.5px;
   font-weight: 600;
-}
-
-.ftp-step-d {
-  display: inline-block;
-  margin-top: 16px;
-  font-size: 12px;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  color: var(--on2);
 }
 
 .ftp-step-art {
@@ -1489,7 +1544,7 @@
 
 .ftp-word figcaption {
   font-size: 12.5px;
-  color: var(--on2);
+  color: var(--on);
 }
 
 .ftp-word figcaption b {
@@ -1532,7 +1587,7 @@
 .ftp-talk p {
   max-width: 320px;
   font-size: 14px;
-  color: var(--on2);
+  color: var(--on);
 }
 
 .ftp-mail {
@@ -1626,6 +1681,10 @@
   opacity: .7;
 }
 
+.ftp-else a:hover small {
+  opacity: 1;
+}
+
 .ftp-else svg {
   transition: transform .3s cubic-bezier(.3,1.5,.5,1);
 }
@@ -1641,7 +1700,7 @@
   flex-wrap: wrap;
   gap: 12px 24px;
   padding: 34px 4px 40px;
-  color: var(--ftp-blue);
+  color: var(--ftp-blue-t);
   font-size: clamp(15px,1.8vw,20px);
   letter-spacing: .06em;
   text-transform: uppercase;
@@ -1664,6 +1723,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  min-height: 28px;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: .1em;
@@ -1672,7 +1732,7 @@
 }
 
 .ftp-top:hover {
-  color: var(--ftp-blue);
+  color: var(--ftp-blue-t);
 }
 
 .ftp-clock {
@@ -1752,17 +1812,27 @@
   color: var(--on);
 }
 
+.ftp-modal-text {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
 .ftp-modal-t {
   font-size: clamp(22px,2.6vw,30px);
   font-weight: 800;
   line-height: 1.15;
 }
 
-.ftp-modal-l {
-  font-size: 15px;
-  color: var(--on2);
-  font-weight: 600;
-  letter-spacing: .06em;
+.ftp-modal-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+
+.ftp-modal-note {
+  font-size: 12.5px;
 }
 
 .ftp-modal-p {
@@ -1785,7 +1855,7 @@
 }
 
 .ftp-dl2 dt {
-  color: var(--on2);
+  color: var(--on);
   text-transform: uppercase;
   letter-spacing: .1em;
   font-size: 11px;
@@ -1938,10 +2008,6 @@
     max-width: 360px;
   }
 
-  .ftp-cols {
-    grid-template-columns: 1fr 1fr;
-  }
-
   .ftp-step {
     grid-template-columns: 1fr;
   }
@@ -1985,6 +2051,11 @@
     left: 3%;
     width: 94%;
     top: var(--mt);
+    z-index: var(--mz);
+  }
+
+  .ftp-dfold:not([data-front]) .ftp-dl-en {
+    display: none;
   }
 
   .ftp-dfold:hover {
@@ -2035,8 +2106,6 @@
 
   .ftp-band-go {
     padding-left: clamp(14px,2.4vw,28px);
-    flex-direction: column;
-    align-items: flex-start;
   }
 
   .ftp-band-t {
@@ -2074,5 +2143,24 @@
   .ftp-rv {
     opacity: 1;
     transform: none;
+  }
+}
+
+@media print {
+  .ftp-root {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .ftp-rv {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .ftp-navwrap,
+  .ftp-overlay,
+  .ftp-toast {
+    display: none;
   }
 }
