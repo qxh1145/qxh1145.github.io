@@ -1238,7 +1238,14 @@ export default function FolderTabPortfolio(props) {
                   <button type="button" className="ftp-btn" onClick={copyEmail}>
                     {ui.copy}
                   </button>
-                  <a className="ftp-btn" data-ghost="true" href={"mailto:" + email}>
+                  {/* Gmail's compose page: a mailto link does nothing on a machine with no mail app set up. */}
+                  <a
+                    className="ftp-btn"
+                    data-ghost="true"
+                    href={"https://mail.google.com/mail/?view=cm&fs=1&to=" + encodeURIComponent(email)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
                     {ui.emailMe} <Arrow dir="ne" />
                   </a>
                 </div>
